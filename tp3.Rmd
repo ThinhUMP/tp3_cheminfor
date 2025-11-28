@@ -1,0 +1,106 @@
+---
+output: 
+  pdf_document:
+    number_sections: true
+    keep_tex: true
+    highlight: tango
+    df_print: kable
+header-includes:
+  - \usepackage{fvextra}
+  - \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+\begin{center}
+  \vspace*{-2cm} % move logo up
+  \includegraphics[width=4cm]{figs/upc_logo.png}\\[1em] % <-- logo size and spacing
+  {
+    \LARGE \textbf{Chemoinformatic1-TP3} 
+  } \\[0.5em]
+  Student name: Van Thinh TO \\
+  Student ID: 22518830
+\end{center}
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(eval = TRUE)
+knitr::opts_chunk$set(result = TRUE)
+```
+
+```{r}
+library(ChemmineR)
+```
+
+#Assignment
+## ChEMBL Search
+
+```{r}
+sdfset <- read.SDFset("data/kinase_inhibitors.sdf")
+print(length(sdfset))
+valid_idx <- validSDF(sdfset)
+sdfset <- sdfset[valid_idx]
+print(length(sdfset))
+```
+
+```{r}
+length(MW(sdfset))
+```
+
+```{r}
+dim(atomcountMA(sdfset, addH = FALSE))
+```
+
+```{r}
+length(MF(sdfset))
+```
+
+```{r}
+propma <- data.frame(MF=MF(sdfset), MW=MW(sdfset), atomcountMA(sdfset, addH=FALSE))
+new_df <- subset(propma, select = -c(MF, MW, H))
+new_df
+```
+
+```{r}
+order(new_df$C, decreasing = TRUE)
+```
+
+
+```{r}
+propma <- atomcountMA(sdfset, addH=FALSE) 
+boxplot(new_df, col="blue", main="Atom Frequency")
+```
+
+```{r}
+(colSums(groups(sdfset)))
+```
+
+
+```{r}
+barplot(colSums(groups(sdfset)))
+```
+
+```{r}
+colSums(groups(sdfset))
+```
+
+```{r}
+groups_df <- data.frame(groups(sdfset))
+```
+
+```{r}
+propma <- data.frame(
+  MF=MF(sdfset), 
+  MW=MW(sdfset), 
+  atomcountMA(sdfset, addH=FALSE),
+  group
+  )
+```
+1380
+1803
+```{r}
+rings(sdfset[1755], type = "count", arom = TRUE, upper = 8)
+```
+
+```{r}
+View(sdfset)
+```
+
