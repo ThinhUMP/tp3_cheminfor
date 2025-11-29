@@ -56,11 +56,118 @@ length(MF(sdfset))
 ```{r}
 propma <- data.frame(MF=MF(sdfset), MW=MW(sdfset), atomcountMA(sdfset, addH=FALSE))
 new_df <- subset(propma, select = -c(MF, MW, H))
-new_df
+```
+
+
+```{r}
+library(tidyverse)
+
+new_df <- as.data.frame(new_df)
+
+df_long <- new_df %>%
+  pivot_longer(cols = everything(),
+               names_to = "Atom",
+               values_to = "Count")
 ```
 
 ```{r}
-order(new_df$C, decreasing = TRUE)
+library(dplyr)
+
+atom_stats <- df_long %>%
+  group_by(Atom) %>%
+  summarise(total = sum(Count, na.rm = TRUE)) %>%
+  arrange(desc(total))
+atom_stats
+
+top_atoms <- atom_stats$Atom[1:4] #top4
+
+df_long$Group <- ifelse(df_long$Atom %in% top_atoms,
+                        "High Frequency",
+                        "Low Frequency")
+```
+
+
+```{r}
+ggplot(df_long, aes(x = Atom, y = Count, fill = Atom)) +
+  geom_boxplot(
+    color = "black",
+    linewidth = 0.3,
+    width = 0.7,
+    outlier.alpha = 0.3,
+    outlier.size = 1.5,
+    outlier.stroke = 0.2
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  facet_wrap(~ Group, ncol = 2) +    # <<< 1 row, 2 columns
+  theme_minimal(base_size = 16) +
+  labs(y = "Count", x = "Atom Type") +
+  theme(
+    strip.text = element_text(size = 13),
+    axis.text.x = element_text(hjust = 1),
+    panel.spacing = unit(1, "lines")
+  )
+
+ggsave("figs/atom_boxplot.pdf", width = 12, height = 6, dpi = 600)
+```
+
+```{r}
+library(tidyverse)
+library(patchwork)
+
+# Center the boxplots
+df_long$Xpos <- "A"
+
+# Split into two groups
+high_df <- df_long %>% filter(Group == "High Frequency")
+low_df  <- df_long %>% filter(Group == "Low Frequency")
+
+# Plot 1: High-frequency atoms
+p1 <- ggplot(high_df, aes(x = Xpos, y = Count, fill = Atom)) +
+  geom_boxplot(
+    color = "black",
+    linewidth = 0.3,
+    width = 0.8,
+    outlier.alpha = 0.3,
+    outlier.size = 1.4,
+    outlier.stroke = 0.2
+  ) +
+  facet_wrap(~ Atom, ncol = 3, scales = "free_y") +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal(base_size = 13) +
+  labs(x = NULL, y = "Count (High Frequency)") +
+  theme(
+    strip.text = element_text(size = 13),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.spacing = unit(1, "lines")
+  )
+
+# Plot 2: Low-frequency atoms
+p2 <- ggplot(low_df, aes(x = Xpos, y = Count, fill = Atom)) +
+  geom_boxplot(
+    color = "black",
+    linewidth = 0.3,
+    width = 0.8,
+    outlier.alpha = 0.3,
+    outlier.size = 1.4,
+    outlier.stroke = 0.2
+  ) +
+  facet_wrap(~ Atom, ncol = 3, scales = "free_y") +
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal(base_size = 13) +
+  labs(x = NULL, y = "Count (Low Frequency)") +
+  theme(
+    strip.text = element_text(size = 13),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    panel.spacing = unit(1, "lines")
+  )
+
+# Combine with independent axes
+p <- p1 | p2
+
+# Save
+ggsave("figs/atom_boxplot_dual.pdf", p, width = 14, height = 6, dpi = 600)
 ```
 
 
@@ -70,37 +177,130 @@ boxplot(new_df, col="blue", main="Atom Frequency")
 ```
 
 ```{r}
-(colSums(groups(sdfset)))
+mw <- ggplot(propma, aes(y = MW)) +
+  geom_boxplot(fill = "4A90E2", outlier.shape = NA, width = 0.4) +
+  geom_hline(yintercept = 500, linetype = "dashed", color = "blue") +
+  scale_y_continuous(limits = c(0, 1000)) +
+  theme_minimal(base_size = 12) +
+  labs(y = "Molecular Weight (MW)", x = NULL) +
+  theme(axis.text.x = element_blank())
+
+ggsave("figs/mw.pdf", mw, width = 5, height = 5, dpi = 600)
 ```
 
 
 ```{r}
-barplot(colSums(groups(sdfset)))
-```
+library(ggplot2)
 
-```{r}
-colSums(groups(sdfset))
-```
-
-```{r}
-groups_df <- data.frame(groups(sdfset))
-```
-
-```{r}
-propma <- data.frame(
-  MF=MF(sdfset), 
-  MW=MW(sdfset), 
-  atomcountMA(sdfset, addH=FALSE),
-  group
+ggplot(propma, aes(x = MW)) +
+  geom_histogram(
+    bins = 50,
+    fill = "#4A90E2",
+    color = "white",
+    alpha = 0.85
+  ) +
+  theme_minimal(base_size = 13) +
+  labs(
+    # title = "Frequency Distribution of Molecular Weight",
+    x = "Molecular Weight (MW)",
+    y = "Frequency"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.grid.minor = element_blank()
   )
 ```
+
+
+```{r}
+library(ChemmineR)
+(colSums(ChemmineR::groups(sdfset)))
+```
+
+```{r}
+df <- data.frame(
+  Group = names(colSums(ChemmineR::groups(sdfset))),
+  Count = as.numeric(colSums(ChemmineR::groups(sdfset)))
+)
+```
+
+
+```{r}
+groups_fig <- ggplot(df, aes(x = reorder(Group, -Count), y = Count)) +
+  geom_col(fill = "4A90E2") +
+  geom_text(aes(label = Count), vjust = -0.3, size = 3) +
+  labs(x = NULL) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("figs/groups.pdf", groups_fig, dpi = 600)
+```
+
+```{r}
+groups <- data.frame(ChemmineR::groups(sdfset))
+```
+
+```{r}
+propma <- 
+  data.frame(
+  MF=MF(sdfset), 
+  MW=MW(sdfset), 
+  atomcountMA(sdfset, addH=FALSE)
+  )
+```
+
 1380
 1803
 ```{r}
-rings(sdfset[1755], type = "count", arom = TRUE, upper = 8)
+exclude_idx <- c(1380, 1803)
+include_idx <- setdiff(1:1812, exclude_idx)
+
+rings_partial <- rings(sdfset[include_idx], type = "count", arom = TRUE, upper = 6)
+
+rings_df <- data.frame(
+  RINGS    = rep(NA, 1812),
+  AROMATIC = rep(NA, 1812)
+)
+
+rings_df[include_idx, ] <- rings_partial
+
+rings_df[1380, "RINGS"]    <- 51
+rings_df[1380, "AROMATIC"] <- 30
+
+rings_df[1803, "RINGS"]    <- 51
+rings_df[1803, "AROMATIC"] <- 30
+
 ```
 
 ```{r}
-View(sdfset)
+datablocktag(sdfset, "chembl_id")[1380]
+```
+
+
+```{r}
+df <- cbind(rings_df, groups_df, propma)
+rownames(df) <- NULL
+rownames(df) <- datablocktag(sdfset, "chembl_id")
+write.csv(df, "data/properties.csv")
+```
+
+```{r}
+order(df$ROR, decreasing = TRUE)[1:3]
+```
+
+```{r}
+chembl_ids <- rownames(df[c(order(df$R3N, decreasing = TRUE)[1:3]),])
+chembl_ids
+```
+
+```{r}
+df_csv <- read.csv("data/kinase_inhibitors.csv", sep=";")
+df_select <- df_csv[df_csv$ChEMBL.ID %in% chembl_ids, c("ChEMBL.ID", "Smiles")]
+write.csv(df_select, "data/top3R3N.csv")
+df_select
+```
+
+```{r}
+colnames(df_csv)
 ```
 
